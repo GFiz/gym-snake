@@ -25,7 +25,7 @@ class SnakeEnv(gym.Env):
         old_score = game.score
         game.step(action)
         info = {'ACTION_NAME': action}
-        return game.observation(), old_score-game.score, not game.active_game, info
+        return game.observation(), game.score - old_score, not game.active_game, info
 
     def reset(self):
         self.game_object.reset()
@@ -38,8 +38,7 @@ class SnakeEnv(gym.Env):
             board[:, :] = game.board
             head = game.snake.body[-1]
             board[head[0], head[1]] = 2
-            print('Score: {}'.format(game.score))
-            print(board)
+            return board
         if mode == 'rgb_array':
             height, width = game.board_shape
             board_rgb = np.zeros((height, width, 3))

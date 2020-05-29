@@ -91,8 +91,13 @@ class SnakeGame:
         self.__init__(*self.board_shape)
         self.insert_pill()
 
+    def get_board(self):
+        array = np.zeros(self.board_shape)
+        array[:,:] = self.board
+        return array
+
     def observation(self):
-        board_features = self.board
+        board_features = self.get_board()
         head = self.snake.body[-1]
         head_features = np.zeros(self.board_shape)
         head_features[head[0], head[1]] = 1
