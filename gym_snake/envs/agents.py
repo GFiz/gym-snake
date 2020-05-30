@@ -1,45 +1,49 @@
 from gym import Env
-import tensorflow as tf 
+from tqdm import tqdm
+import tensorflow as tf
 import numpy as np
 import random
 from gym_snake.envs.core_agents import Policy, QFunction, Experience, ExperienceMemory
 from keras.models import Model, load_model
 from keras.layers import Dense, Input, Flatten
+from keras.callbacks import TensorBoard
+
 
 class QNet(QFunction):
-    def __init__(self, env:Env, hidden_units: int, modelpath = None):
+    def __init__(self, env: Env, hidden_units: int, modelpath=None):
         if modelpath != None:
             self.neural_net = load_model(modelpath)
         else:
             inpTensor = Input(env.observation_space.shape)
-            flatTensor = Flatten()(inpTensor) 
+            flatTensor = Flatten()(inpTensor)
             hiddenOut = Dense(hidden_units, activation='relu')(flatTensor)
             out = Dense(env.action_space.n)(hiddenOut)
-            model = Model(inpTensor,out)
+            model = Model(inpTensor, out)
             model.compile(optimizer='adam', loss=tf.keras.losses.mean_squared_error)
             self.neural_net = model
+
     def evaluate(self, observation, done=False):
         if done:
-            return 0 
-        evaluation = self.neural_net.predict(observation[np.newaxis,:])
+            return 0
+        evaluation = self.neural_net.predict(observation[np.newaxis, :])
         return evaluation
-    
-    def evaluate_max(self, observation, done:bool):
-        evaluation = self.evaluate(observation,done)
+
+    def evaluate_max(self, observation, done: bool):
+        evaluation = self.evaluate(observation, done)
         return np.max(evaluation)
 
-    def update(self,X,Y,num_epochs,verbose=0):
+    def update(self, X, Y, num_epochs, verbose=0):
         model = self.neural_net
-        model.fit(x=X, y=Y, epochs=num_epochs,verbose= verbose)
+        model.fit(x=X, y=Y, epochs=num_epochs, verbose=verbose)
 
 
 class DQNAgent(Policy):
     def __init__(self, env: Env, Q: QNet, mem_cap=10e6):
         super().__init__(env)
         self.Qpred = Q
-        self.memory=ExperienceMemory(mem_cap)
-    
-    def follow(self,observation, epsilon:float):
+        self.memory = ExperienceMemory(mem_cap)
+
+    def follow(self, observation, epsilon: float):
         p = random.uniform(0, 1)
         if p >= epsilon:
             evaluation = self.Qpred.evaluate(observation)
@@ -48,18 +52,36 @@ class DQNAgent(Policy):
             random_action = self.environment.action_space.sample()
             return random_action
 
-    def update(self, batch_size, num_epochs,verbose=0):
+    def update(self, batch_size, num_epochs, verbose=0):
         Q = self.Qpred
         batch = self.memory.sample(batch_size)
-        X = np.concatenate([exp.state[np.newaxis,:] for exp in batch])
+        X = np.concatenate([exp.state[np.newaxis, :] for exp in batch])
         Y = []
         for exp in batch:
             observation = exp.state
             next_obsevation = exp.successor_state
             action = exp.action
             done = exp.done
-            target =Q.evaluate(observation)
-            target[0,action] = exp.reward + Q.evaluate_max(next_obsevation, done)
-            Y.append(target[np.newaxis,:])
-        Y = np.concatenate(Y).reshape((X.shape[0],4))
-        Q.update(X,Y,num_epochs,verbose)
+            target = Q.evaluate(observation)
+            target[0, action] = exp.reward + \
+                Q.evaluate_max(next_obsevation, done)
+            Y.append(target[np.newaxis, :])
+        Y = np.concatenate(Y).reshape((X.shape[0], 4))
+        Q.update(X, Y, num_epochs, verbose)
+    
+    def train(self,num_episodes,penalty, batch_size, num_epochs):
+        env = self.environment 
+        memory=self.memory
+        scores = []
+        for i in tqdm(range(num_episodes)):
+            env.reset()
+            done = False
+            while not done:
+                observation = env.game_object.observation()
+                action = self.follow(observation, 1/(i/300+1))
+                next_observation, reward, done, info = env.step(action)
+                memory.store(Experience(observation, action, reward-penalty, next_observation, done))
+                if len(memory.memory) >= batch_size:
+                    self.update(batch_size, 1)
+            scores.append(env.game_object.score)
+    

@@ -19,6 +19,9 @@ class SnakeEnv(gym.Env):
         keys_to_action = {(ord('w'),):0, (ord('s'),): 1, (ord('a'),): 2, (ord('d'),): 3}
         return keys_to_action
 
+    def observation(self):
+        return self.game_object.observation()
+        
     def step(self, a):
         game = self.game_object
         action = game.ACTIONS[a]
