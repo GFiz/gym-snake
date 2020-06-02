@@ -10,6 +10,7 @@ import gym
 import gym_snake
 from gym_snake.envs.core_agents import QFunction, Policy, EpsilonRegime
 from gym_snake.envs.agents import DQNAgent, QNet
+from gym.utils.play import play
 import matplotlib
 import pickle
 matplotlib.use('TkAgg')
@@ -18,25 +19,5 @@ NUM_EPISODES = int(5e3)
 BATCH_SIZE = 32
 NUM_EPOCHS = 1
 penalty = 0.1
-env = gym.make('snake-v0', height=6, width=6)
-agent = DQNAgent(env, QNet(env, 32), mem_cap=int(1e5))
-
-
-def epsilon_decay(n):
-    return 1 / (n / 100 + 1)
-
-
-regime = EpsilonRegime(1, epsilon_decay)
-# losses, scores = agent.train(
-#     NUM_EPISODES,
-#     penalty,
-#     BATCH_SIZE,
-#     NUM_EPOCHS,
-#     regime)
-# agent.save('dqnagent2.pickle')
-
-with open('dqnagent2.pickle', 'rb') as handle:
-    agent2 = pickle.load(handle)
-
-print(agent2.evaluate(1000, 50))
-agent2.playthrough(100)
+env=gym.make('snake-v0', height=50, width=50, num_players=2)
+play(env, fps=10, zoom=20.)

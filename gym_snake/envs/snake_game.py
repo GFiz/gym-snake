@@ -5,9 +5,10 @@ import os
 
 
 class Snake:
-    def __init__(self, start):
+    def __init__(self, start, playerID):
         self.body = [start]
-
+        self.score = 0
+        self.playerID = playerID
     def move(self, action):
         head = self.body[-1]
         head_x, head_y = head[0], head[1]
@@ -35,7 +36,7 @@ class SnakeGame:
     """
     ACTIONS = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 
-    def __init__(self, height: int, width: int, start=None):
+    def __init__(self, height: int, width: int, num_players:int):
         """Initialize SnakeGame on a a board of given size with a start postion. A zero in the matrix indicates a "free position", a "-1" indicates a forbidden postion and "1" will indicate a pill position.
 
         Args:
@@ -43,27 +44,26 @@ class SnakeGame:
             width (int): Width of board
             height (int): Height of board
         """
-        if start == None:
-            start = [random.randint(1, height - 2),
-                     random.randint(1, width - 2)]
-
+        start_points = random.sample([(i,j) for i in range(1,height-1) for j in range(1,width-1)],num_players)
         self.board_shape = (height, width)
         self.score = 0
-        self.snake = Snake(start)
+        self.snakes = [Snake(start,i) for i,start in enumerate(start_points)]
         self.board = np.zeros((height, width))
         self.board[0, :] = -np.ones(width)
         self.board[height - 1, :] = -np.ones(width)
         self.board[:, 0] = -np.ones(height)
         self.board[:, width - 1] = -np.ones(height)
-        self.board[start[0], start[1]] = -1
+        for start in start_points:
+            self.board[start[0], start[1]] = -1
         self.active_game = True
 
-    def step(self, action):
-        tail = self.snake.body[0]
-        self.snake.move(action)
-        head = self.snake.body[-1]
+    def step(self, action, playerID):
+        snake = self.snakes[playerID]
+        tail = snake.body[0]
+        snake.move(action)
+        head = snake.body[-1]
         reward = self.board[head[0], head[1]]
-        self.score += reward
+        snake.score += reward
         if reward == 0:
             self.board[tail[0], tail[1]] = 0
             self.board[head[0], head[1]] = -1
@@ -71,7 +71,7 @@ class SnakeGame:
             self.active_game = False
         if reward == 1:
             self.board[head[0], head[1]] = -1
-            self.snake.body.insert(0,tail)
+            snake.body.insert(0,tail)
             self.insert_pill()
     
     def insert_pill(self):
@@ -88,7 +88,7 @@ class SnakeGame:
             self.active_game = False
 
     def reset(self):
-        self.__init__(*self.board_shape)
+        self.__init__(*self.board_shape, num_players= len(self.snakes))
         self.insert_pill()
 
     def get_board(self):
@@ -97,9 +97,11 @@ class SnakeGame:
         return array
 
     def observation(self):
-        board_features = self.get_board()
-        head = self.snake.body[-1]
-        head_features = np.zeros(self.board_shape)
-        head_features[head[0], head[1]] = 1
-        combined_features = np.concatenate((board_features, head_features))
+        all_features = [self.get_board()]
+        for snake in self.snakes:
+            head = snake.body[-1]
+            head_features = np.zeros(self.board_shape)
+            head_features[head[0], head[1]] = 1
+            all_features.append(head_features)
+        combined_features = np.concatenate([all_features])
         return combined_features
