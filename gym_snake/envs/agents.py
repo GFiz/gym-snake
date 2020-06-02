@@ -3,10 +3,12 @@ from tqdm import tqdm
 import tensorflow as tf
 import numpy as np
 import random
-from gym_snake.envs.core_agents import Policy, QFunction, Experience, ExperienceMemory
+import pickle
+from gym_snake.envs.core_agents import Policy, QFunction, Experience, ExperienceMemory, EpsilonRegime
 from keras.models import Model, load_model
 from keras.layers import Dense, Input, Flatten
 from keras.callbacks import TensorBoard
+import tensorflow as tf
 
 
 class QNet(QFunction):
@@ -19,7 +21,8 @@ class QNet(QFunction):
             hiddenOut = Dense(hidden_units, activation='relu')(flatTensor)
             out = Dense(env.action_space.n)(hiddenOut)
             model = Model(inpTensor, out)
-            model.compile(optimizer='adam', loss=tf.keras.losses.mean_squared_error)
+            model.compile(optimizer='adam',
+                          loss=tf.keras.losses.mean_squared_error)
             self.neural_net = model
 
     def evaluate(self, observation, done=False):
@@ -35,6 +38,7 @@ class QNet(QFunction):
     def update(self, X, Y, num_epochs, verbose=0):
         model = self.neural_net
         model.fit(x=X, y=Y, epochs=num_epochs, verbose=verbose)
+        return model.history.history['loss']
 
 
 class DQNAgent(Policy):
@@ -67,21 +71,34 @@ class DQNAgent(Policy):
                 Q.evaluate_max(next_obsevation, done)
             Y.append(target[np.newaxis, :])
         Y = np.concatenate(Y).reshape((X.shape[0], 4))
-        Q.update(X, Y, num_epochs, verbose)
-    
-    def train(self,num_episodes,penalty, batch_size, num_epochs):
-        env = self.environment 
-        memory=self.memory
+        loss = Q.update(X, Y, num_epochs, verbose)
+        return loss[0]
+
+    def train(self, num_episodes, penalty, batch_size, num_epochs, regime: EpsilonRegime):
+        env = self.environment
+        memory = self.memory
         scores = []
+        losses = []
         for i in tqdm(range(num_episodes)):
             env.reset()
             done = False
+            loss = []
+            epsilon = regime.get_epsilon(i)
             while not done:
                 observation = env.game_object.observation()
-                action = self.follow(observation, 1/(i/300+1))
+                action = self.follow(observation, epsilon)
                 next_observation, reward, done, info = env.step(action)
-                memory.store(Experience(observation, action, reward-penalty, next_observation, done))
+                memory.store(Experience(observation, action,
+                                        reward-penalty, next_observation, done))
                 if len(memory.memory) >= batch_size:
-                    self.update(batch_size, 1)
+                    loss.append(self.update(batch_size, 1))
+            if len(loss) > 0:
+                losses.append(np.mean(loss))
+            else:
+                losses.append(np.inf)
             scores.append(env.game_object.score)
-    
+        return losses, scores
+
+    def save(self, filepath: str):
+        with open(filepath, 'wb') as f:
+            pickle.dump(self, f, -1)

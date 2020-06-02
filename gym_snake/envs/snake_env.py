@@ -12,6 +12,7 @@ class SnakeEnv(gym.Env):
         self.game_object = SnakeGame(height, width)
         self.game_object.insert_pill()
         self.action_space = Discrete(4)
+        self.score = self.game_object.score
         self.observation_space = Box(
             low=-1, high=1, shape=self.game_object.observation().shape)
 
@@ -21,12 +22,13 @@ class SnakeEnv(gym.Env):
 
     def observation(self):
         return self.game_object.observation()
-        
+
     def step(self, a):
         game = self.game_object
         action = game.ACTIONS[a]
         old_score = game.score
         game.step(action)
+        self.score = game.score
         info = {'ACTION_NAME': action}
         return game.observation(), game.score - old_score, not game.active_game, info
 

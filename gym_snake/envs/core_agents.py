@@ -6,7 +6,7 @@ import random
 import numpy as np
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
-
+from tqdm import tqdm
 
 class QFunction:
     def __init__(self, env: Env, **kwargs):
@@ -41,6 +41,22 @@ class Policy:
 
     def update(self, **kwargs):
         raise NotImplementedError
+
+    def evaluate(self,num_episodes,max_steps=np.inf):
+        env = self.environment
+        scores = []
+        for i in tqdm(range(num_episodes)):
+            env.reset()
+            done = False
+            counter = 0
+            while not done and counter <= max_steps:
+                action = self.follow(env.observation(), 0)
+                _, _, done, _ = env.step(action)
+                counter += 1
+            scores.append(env.score)
+        return np.mean(scores)
+
+
 
     def playthrough(self, max_steps: int):
         env = self.environment
