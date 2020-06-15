@@ -18,7 +18,7 @@ class QFunction:
 
     def evaluate_max(self, observation):
         evaluations = [self.evaluate(observation, action)
-                       for action in self.enviroment.action_space]
+                       for action in self.enviroment.action_space[0]]
         return np.max(evaluations)
 
     def update(self, **kwargs):
@@ -28,7 +28,7 @@ class QFunction:
 class Policy:
     def __init__(self, env: Env):
         self.environment = env
-        self.actions = env.action_space
+        self.actions = env.action_space[0]
         ...
 
     def follow(self, observation, epsilon: float):
@@ -36,7 +36,7 @@ class Policy:
         if p >= epsilon:
             raise NotImplementedError
         else:
-            random_action = self.environment.action_space.sample()
+            random_action = self.environment.action_space[0].sample()
             return random_action
 
     def update(self, **kwargs):
@@ -44,17 +44,21 @@ class Policy:
 
     def evaluate(self,num_episodes,max_steps=np.inf):
         env = self.environment
+        game = env.game_object
         scores = []
         for i in tqdm(range(num_episodes)):
             env.reset()
-            done = False
-            counter = 0
-            while not done and counter <= max_steps:
-                action = self.follow(env.observation(), 0)
-                _, _, done, _ = env.step(action)
-                counter += 1
-            scores.append(env.score)
-        return np.mean(scores)
+            game_over = False
+            counter = 0 
+            while (not game_over and counter <= max_steps):
+                for snake in game.snakes:
+                    if not snake.done:
+                        action = self.follow(env.observation(snake.playerID), 0)
+                        env.step((action, snake.playerID))
+                        game_over = game.done
+                        counter += 1
+            scores.append(game.get_scores())
+        return np.mean(scores,axis=0)
 
 
 
@@ -62,15 +66,20 @@ class Policy:
         env = self.environment
         assert 'rgb_array' in env.metadata['render.modes']
         env.reset()
+        game = env.game_object
         data = [env.render(mode='rgb_array')]
-        done = False
+        game_over = False
         counter = 0
 
-        while (not done and counter <= max_steps):
-            action = self.follow(env.observation(), 0)
-            _, _, done, _ = env.step(action)
-            data.append(env.render(mode='rgb_array'))
-            counter += 1
+        while (not game_over and counter <= max_steps):
+            for snake in game.snakes:
+                if not snake.done:
+                    action = self.follow(env.observation(snake.playerID), 0)
+                    env.step((action, snake.playerID))
+                    data.append(env.render(mode='rgb_array'))
+                    game_over = game.done
+                    counter += 1
+
 
         fig = plt.figure()
         fig.suptitle('Agent playthrough')

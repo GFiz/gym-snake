@@ -19,7 +19,7 @@ class QNet(QFunction):
             inpTensor = Input(env.observation_space.shape)
             flatTensor = Flatten()(inpTensor)
             hiddenOut = Dense(hidden_units, activation='relu')(flatTensor)
-            out = Dense(env.action_space.n)(hiddenOut)
+            out = Dense(env.action_space[0].n)(hiddenOut)
             model = Model(inpTensor, out)
             model.compile(optimizer='adam',
                           loss=tf.keras.losses.mean_squared_error)
@@ -42,7 +42,7 @@ class QNet(QFunction):
 
 
 class DQNAgent(Policy):
-    def __init__(self, env: Env, Q: QNet, mem_cap=10e6):
+    def __init__(self, env: Env, Q: QNet, mem_cap=int(10e5)):
         super().__init__(env)
         self.Qpred = Q
         self.memory = ExperienceMemory(mem_cap)
@@ -53,7 +53,7 @@ class DQNAgent(Policy):
             evaluation = self.Qpred.evaluate(observation)
             return np.argmax(evaluation)
         else:
-            random_action = self.environment.action_space.sample()
+            random_action = self.environment.action_space[0].sample()
             return random_action
 
     def update(self, batch_size, num_epochs, verbose=0):
@@ -81,22 +81,26 @@ class DQNAgent(Policy):
         losses = []
         for i in tqdm(range(num_episodes)):
             env.reset()
-            done = False
+            game = env.game_object
+            game_over = False
             loss = []
             epsilon = regime.get_epsilon(i)
-            while not done:
-                observation = env.game_object.observation()
-                action = self.follow(observation, epsilon)
-                next_observation, reward, done, info = env.step(action)
-                memory.store(Experience(observation, action,
-                                        reward-penalty, next_observation, done))
-                if len(memory.memory) >= batch_size:
-                    loss.append(self.update(batch_size, 1))
-            if len(loss) > 0:
-                losses.append(np.mean(loss))
-            else:
-                losses.append(np.inf)
-            scores.append(env.game_object.score)
+            while not game_over:
+                for snake in game.snakes:
+                    if not snake.done:
+                        observation = game.observation(snake.playerID)
+                        action = self.follow(observation, epsilon)
+                        next_observation, reward, done, info = env.step((action,snake.playerID))
+                        memory.store(Experience(observation, action,
+                                                reward-penalty, next_observation, done))
+                        if len(memory.memory) >= batch_size:
+                            loss.append(self.update(batch_size, 1))
+                    if len(loss) > 0:
+                        losses.append(np.mean(loss))
+                    else:
+                        losses.append(np.inf)
+                    scores.append(env.game_object.get_scores())
+                game_over = game.done
         return losses, scores
 
     def save(self, filepath: str):
