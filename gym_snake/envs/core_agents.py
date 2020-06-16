@@ -57,7 +57,7 @@ class Policy:
                         env.step((action, snake.playerID))
                         game_over = game.done
                         counter += 1
-            scores.append(game.get_scores())
+            scores.append(game.scores)
         return np.mean(scores,axis=0)
 
 

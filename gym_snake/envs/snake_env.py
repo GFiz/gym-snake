@@ -37,8 +37,7 @@ class SnakeEnv(gym.Env):
     def render(self, mode='human'):
         game = self.game_object
         if mode == 'human':
-            board = np.zeros(game.board_shape)
-            board[:, :] = game.board
+            board = game.get_board()
             for snake in game.snakes:
                 head = snake.body[-1]
                 board[head[0], head[1]] = (snake.playerID+1)*11

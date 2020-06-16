@@ -5,13 +5,24 @@ import os
 
 
 class Snake:
-    def __init__(self, start, playerID):
+    def __init__(self, start, playerID: int):
+        """ Initialise snake object at given start coordinates and player ID
+
+        Args:
+            start ([int, int]): List or array of length two with the start point coordinates for the snake.
+            playerID (int): Integer ID for snake player.
+        """
         self.body = [start]
         self.score = 0
         self.playerID = playerID
         self.done = False
 
-    def move(self, action):
+    def move(self, action: str):
+        """Move snake according to given action.
+
+        Args:
+            action (str): Direction in which to move the snake. Must be one of ['UP', 'DOWN', 'LEFT', 'RIGHT'].
+        """
         head = self.body[-1]
         head_x, head_y = head[0], head[1]
         if action == 'UP':
@@ -33,17 +44,15 @@ class Snake:
 
 
 class SnakeGame:
-    """Snake game representation.  
-    """
     ACTIONS = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 
     def __init__(self, height: int, width: int, num_players: int):
-        """Initialize SnakeGame on a a board of given size with a start postion. A zero in the matrix indicates a "free position", a "-1" indicates a forbidden postion and "1" will indicate a pill position.
+        """ Initialise game object with num_players snakes and board of given height and width. The perimeter of the board is considered to be a wall by default.
 
         Args:
-            start ([int,int]): start position of snake head
+            height (int): Height of board.
             width (int): Width of board
-            height (int): Height of board
+            num_players (int): Number of snakes playing in the board.
         """
         start_points = random.sample([(i, j) for i in range(
             1, height-1) for j in range(1, width-1)], num_players)
@@ -75,7 +84,7 @@ class SnakeGame:
             self.board[tail[0], tail[1]] = 0
         if reward == 1:
             self.board[head[0], head[1]] = -1
-            snake.body.insert(0, tail)
+            snake.body.insert(0, tail) # Reinsert tail as pill found 
             self.insert_pill()
         self.done = np.all([snake.done for snake in self.snakes])
 
@@ -96,13 +105,12 @@ class SnakeGame:
         self.__init__(*self.board_shape, num_players=len(self.snakes))
         self.insert_pill()
 
-    def get_scores(self):
+    @property
+    def scores(self):
         return np.array([snake.score for snake in self.snakes])
 
     def get_board(self):
-        array = np.zeros(self.board_shape)
-        array[:, :] = self.board
-        return array
+        return np.copy(self.board)
 
     def observation(self, playerID):
         all_features = self.get_board()
@@ -114,6 +122,3 @@ class SnakeGame:
                 head = snake.body[-1]
                 all_features[head[0], head[1]] = -2
         return all_features
-
-    
-        
