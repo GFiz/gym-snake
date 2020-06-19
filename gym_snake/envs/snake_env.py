@@ -1,9 +1,10 @@
 import gym
 import numpy as np
-from gym_snake.envs.snake_game import SnakeGame
 from gym import error, spaces, utils
+from gym.spaces import Box, Discrete, Tuple
 from gym.utils import seeding
-from gym.spaces import Discrete, Box, Tuple
+
+from gym_snake.envs.snake_game import SnakeGame
 
 
 class SnakeEnv(gym.Env):
@@ -16,7 +17,7 @@ class SnakeEnv(gym.Env):
         self.observation_space = Box(
             low=-2, high=2, shape=self.game_object.observation(0).shape)
 
-    def observation(self,playerID):
+    def observation(self, playerID):
         return self.game_object.observation(playerID)
 
     def step(self, a_tuple):
@@ -32,7 +33,6 @@ class SnakeEnv(gym.Env):
 
     def reset(self):
         self.game_object.reset()
-    
 
     def render(self, mode='human'):
         game = self.game_object
